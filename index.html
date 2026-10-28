@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator Lot</title>
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lot Calc">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --txt:#e8eaee; --mut:#8b93a3;
+    --acc:#4da3ff; --ok:#2ecc8f; --bad:#ff5d6c; --warn:#f5b942;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:12px;padding-bottom:40px}
+  h1{font-size:18px;margin:4px 0 10px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+  .bar label{display:flex;flex-direction:column;font-size:11px;color:var(--mut);gap:3px}
+  input{background:#0f1218;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px;width:100%;min-width:0}
+  input:focus{outline:2px solid var(--acc);border-color:transparent}
+  .bar input{width:110px}
+  .bar .grow{flex:1;min-width:140px}
+  .bar .grow input{width:100%}
+  button{background:#232834;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:14px;cursor:pointer}
+  button:active{background:#2e3545}
+  details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:10px}
+  summary{cursor:pointer;color:var(--mut);font-size:13px}
+  .set{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .set label{display:flex;flex-direction:column;font-size:11px;color:var(--mut);gap:3px}
+  .set input{width:120px}
+  .note{font-size:12px;color:var(--mut);margin:8px 0 0}
+  .head,.row{display:grid;grid-template-columns:110px 90px 1fr 1fr 1fr 150px 1fr;gap:8px;align-items:center}
+  .head{padding:4px 10px;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .row{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px}
+  .row.hide{display:none}
+  .sym{font-weight:700}
+  .cell label{display:none}
+  .lot{font-size:22px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums}
+  .lot.bad{color:var(--bad);font-size:14px;font-weight:600}
+  .lot.idle{color:var(--mut);font-weight:400}
+  .info{font-size:12px;color:var(--mut)}
+  .buy{color:var(--ok);font-weight:700}.sell{color:var(--bad);font-weight:700}
+  .warn{color:var(--warn)}
+  .ref input{color:var(--mut)}
+  @media (max-width:820px){
+    .head{display:none}
+    .row{grid-template-columns:1fr 1fr 1fr;grid-template-areas:"sym sym out" "risk entry sl" "ref ref info"}
+    .cell label{display:block;font-size:11px;color:var(--mut);margin-bottom:3px}
+    .c-sym{grid-area:sym}.c-risk{grid-area:risk}.c-entry{grid-area:entry}.c-sl{grid-area:sl}
+    .c-ref{grid-area:ref}.c-out{grid-area:out;text-align:right}.c-info{grid-area:info;text-align:right;align-self:end}
+    .sym{font-size:17px}
+  }
+</style>
+</head>
+<body>
+<h1>Kalkulator Lot (Risk ke Lot)</h1>
+
+<div class="bar">
+  <label>Risk default ($)<input id="defRisk" inputmode="decimal" placeholder="30"></label>
+  <label class="grow">Cari pair<input id="q" placeholder="mis. JPY, XAU, GBP" autocomplete="off"></label>
+  <button id="clearAll">Kosongkan Entry/SL</button>
+</div>
+
+<details>
+  <summary>Pengaturan (lot step, contract size)</summary>
+  <div class="set">
+    <label>Lot step broker<input id="step" inputmode="decimal"></label>
+    <label>Lot minimum broker<input id="minLot" inputmode="decimal"></label>
+    <label>Contract Forex<input id="cFx" inputmode="decimal"></label>
+    <label>Contract XAUUSD (oz)<input id="cXau" inputmode="decimal"></label>
+    <label>Contract XAGUSD (oz)<input id="cXag" inputmode="decimal"></label>
+    <button id="resetAll" style="align-self:end">Reset semua data</button>
+  </div>
+  <p class="note">Angka Lot besar = hasil mentah 4 desimal, tidak dibulatkan. Lot step dan minimum hanya dipakai untuk menampilkan opsi bulat bawah (&#8595;) dan atas (&#8593;) beserta risk riilnya. Contract size harus sama dengan broker kamu: MT5, klik kanan simbol, Specification. Kolom Ref dipakai untuk konversi ke USD (USDJPY, USDCHF, USDCAD, GBPUSD, AUDUSD, NZDUSD). Update kalau harga sudah bergeser jauh; selisih 1% di Ref berarti selisih 1% di lot. Ref awal diambil dari watchlist TradingView 28 Okt 2026, USDCAD dihitung dari AUDCAD/AUDUSD.</p>
+</details>
+
+<div class="head">
+  <div>Pair</div><div>Ref</div><div>Risk ($)</div><div>Entry</div><div>SL</div><div>Lot</div><div style="text-align:right">Detail</div>
+</div>
+<div id="rows"></div>
+
+<script>
+const PAIRS = [
+  ['XAUUSD',4040.30,2],['XAGUSD',53.651,3],
+  ['GBPUSD',1.33131,5],['EURUSD',1.11462,5],['AUDUSD',0.70406,5],['NZDUSD',0.56224,5],
+  ['USDJPY',158.204,3],['USDCHF',0.82937,5],['USDCAD',1.4038,5],
+  ['AUDCAD',0.98836,5],['AUDCHF',0.58393,5],['AUDJPY',111.387,3],['AUDNZD',1.25224,5],
+  ['CADJPY',112.703,3],['CHFJPY',190.750,3],
+  ['EURAUD',1.58317,5],['EURCAD',1.56454,5],['EURCHF',0.92441,5],['EURGBP',0.83725,5],['EURJPY',176.332,3],['EURNZD',1.98241,5],
+  ['GBPAUD',1.89090,5],['GBPCAD',1.86866,5],['GBPCHF',1.10410,5],['GBPJPY',210.609,3],['GBPNZD',2.36775,5],
+  ['NZDCAD',0.78922,5],['NZDCHF',0.46630,5],['NZDJPY',88.949,3]
+];
+const KEY='lotcalc_v1';
+const DEF={defRisk:'30',step:'0.01',minLot:'0.01',cFx:'100000',cXau:'100',cXag:'5000',rows:{}};
+let S;
+try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'));S.rows=S.rows||{}}catch(e){S=JSON.parse(JSON.stringify(DEF))}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const num=v=>{if(v==null)return NaN;v=String(v).trim().replace(',','.');return v===''?NaN:Number(v)};
+const $=id=>document.getElementById(id);
+
+function R(sym){return S.rows[sym]||(S.rows[sym]={risk:'',entry:'',sl:'',ref:''})}
+function ref(sym){
+  const p=PAIRS.find(x=>x[0]===sym); const r=num(R(sym).ref);
+  return isFinite(r)&&r>0?r:p[1];
+}
+function quoteToUSD(q){
+  switch(q){
+    case 'USD':return 1;
+    case 'JPY':return 1/ref('USDJPY');
+    case 'CHF':return 1/ref('USDCHF');
+    case 'CAD':return 1/ref('USDCAD');
+    case 'GBP':return ref('GBPUSD');
+    case 'AUD':return ref('AUDUSD');
+    case 'NZD':return ref('NZDUSD');
+    case 'EUR':return ref('EURUSD');
+  }
+  return NaN;
+}
+function contract(sym){
+  if(sym==='XAUUSD')return num(S.cXau);
+  if(sym==='XAGUSD')return num(S.cXag);
+  return num(S.cFx);
+}
+function stepDecimals(step){const s=String(step);return s.includes('.')?s.split('.')[1].length:0}
+
+function calc(sym){
+  const r=R(sym);
+  const risk=isFinite(num(r.risk))&&num(r.risk)>0?num(r.risk):num(S.defRisk);
+  const e=num(r.entry), sl=num(r.sl);
+  if(!isFinite(e)||!isFinite(sl)) return {state:'idle'};
+  if(!(risk>0)) return {state:'err',msg:'Isi risk'};
+  if(e===sl) return {state:'err',msg:'Entry = SL'};
+  const dist=Math.abs(e-sl);
+  const c=contract(sym), conv=quoteToUSD(sym.slice(3));
+  if(!(c>0)||!isFinite(conv)) return {state:'err',msg:'Contract/Ref salah'};
+  const perLot=dist*c*conv;
+  const raw=risk/perLot;
+  const step=num(S.step)>0?num(S.step):0.01;
+  const down=Math.floor(raw/step+1e-9)*step;
+  const up=(Math.abs(down-raw)<1e-9)?down:down+step;
+  const dir=e>sl?'BUY':'SELL';
+  const isMetal=sym.startsWith('XA');
+  const pipSize=sym.endsWith('JPY')?0.01:0.0001;
+  const distTxt=isMetal?('$'+dist.toFixed(sym==='XAGUSD'?3:2)):((dist/pipSize).toFixed(1)+' pip');
+  return {state:'ok',raw,down,up,dir,perLot,risk,distTxt,
+          riskDown:down*perLot,riskUp:up*perLot,
+          tooSmall:raw<(num(S.minLot)||0.01)-1e-12,
+          dec:stepDecimals(step)};
+}
+
+function build(){
+  const box=$('rows'); box.innerHTML='';
+  PAIRS.forEach(([sym,price,dec])=>{
+    const r=R(sym);
+    const el=document.createElement('div'); el.className='row'; el.dataset.sym=sym;
+    el.innerHTML=`
+      <div class="cell c-sym sym">${sym}</div>
+      <div class="cell c-ref ref"><label>Ref</label><input data-f="ref" inputmode="decimal" placeholder="${price.toFixed(dec)}" value="${r.ref||''}"></div>
+      <div class="cell c-risk"><label>Risk ($)</label><input data-f="risk" inputmode="decimal" placeholder="${S.defRisk||''}" value="${r.risk||''}"></div>
+      <div class="cell c-entry"><label>Entry</label><input data-f="entry" inputmode="decimal" placeholder="${price.toFixed(dec)}" value="${r.entry||''}"></div>
+      <div class="cell c-sl"><label>SL</label><input data-f="sl" inputmode="decimal" value="${r.sl||''}"></div>
+      <div class="cell c-out"><div class="lot idle" data-o="lot">-</div></div>
+      <div class="cell c-info info" style="text-align:right" data-o="info"></div>`;
+    box.appendChild(el);
+  });
+  PAIRS.forEach(([sym])=>update(sym));
+}
+
+function update(sym){
+  const el=document.querySelector(`.row[data-sym="${sym}"]`); if(!el)return;
+  const out=el.querySelector('[data-o=lot]'), info=el.querySelector('[data-o=info]');
+  const c=calc(sym);
+  out.className='lot'; info.innerHTML='';
+  if(c.state==='idle'){out.classList.add('idle');out.textContent='-';return}
+  if(c.state==='err'){out.classList.add('bad');out.textContent=c.msg;return}
+  out.textContent=c.raw.toFixed(4);
+  const d=c.dec;
+  let h=`<span class="${c.dir==='BUY'?'buy':'sell'}">${c.dir}</span> | ${c.distTxt}<br>`;
+  if(c.up===c.down) h+=`Pas di ${c.down.toFixed(d)} = $${c.riskDown.toFixed(2)}`;
+  else h+=`&#8595; ${c.down.toFixed(d)} = $${c.riskDown.toFixed(2)} | &#8593; ${c.up.toFixed(d)} = $${c.riskUp.toFixed(2)}`;
+  if(c.tooSmall) h+=`<br><span class="warn">Di bawah lot minimum broker</span>`;
+  info.innerHTML=h;
+}
+
+// events
+$('rows').addEventListener('input',e=>{
+  const f=e.target.dataset.f; if(!f)return;
+  const sym=e.target.closest('.row').dataset.sym;
+  R(sym)[f]=e.target.value; save();
+  if(f==='ref') PAIRS.forEach(([s])=>update(s)); else update(sym);
+});
+function bindSetting(id,key,after){
+  const el=$(id); el.value=S[key];
+  el.addEventListener('input',()=>{S[key]=el.value;save();if(after)after();PAIRS.forEach(([s])=>update(s))});
+}
+bindSetting('defRisk','defRisk',()=>document.querySelectorAll('[data-f=risk]').forEach(i=>i.placeholder=S.defRisk||''));
+bindSetting('step','step'); bindSetting('minLot','minLot');
+bindSetting('cFx','cFx'); bindSetting('cXau','cXau'); bindSetting('cXag','cXag');
+
+$('q').addEventListener('input',e=>{
+  const q=e.target.value.trim().toUpperCase();
+  document.querySelectorAll('.row').forEach(r=>r.classList.toggle('hide',q&&!r.dataset.sym.includes(q)));
+});
+$('clearAll').onclick=()=>{
+  if(!confirm('Kosongkan semua Entry dan SL?'))return;
+  Object.values(S.rows).forEach(r=>{r.entry='';r.sl=''});save();build();
+};
+$('resetAll').onclick=()=>{
+  if(!confirm('Reset semua data dan pengaturan ke awal?'))return;
+  try{localStorage.removeItem(KEY)}catch(e){} location.reload();
+};
+build();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}});
+}
+</script>
+</body>
+</html>
